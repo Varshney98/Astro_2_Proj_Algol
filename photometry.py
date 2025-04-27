@@ -10,13 +10,13 @@ from photutils.aperture import CircularAperture, CircularAnnulus, aperture_photo
 from tqdm import tqdm
 
 
-def calibrated_fits(folder_path):
+def get_sorted_fits_files(folder_path):
     fits_files = [f for f in os.listdir(folder_path) if f.endswith("_df.fits") and f.startswith("algol")]
     fits_files.sort(key=lambda x: x.split("_")[2])  # sort by timestamp
     return fits_files
 
 
-def zscale_of_image(img_data, title="Pick a star"):
+def show_image_zscale(img_data, title="Pick a star"):
     zscale = ZScaleInterval()
     vmin, vmax = zscale.get_limits(img_data)
     
@@ -60,7 +60,7 @@ def locate_nearest_star(img_data, x_guess, y_guess, box_size=20):
     _, idx = star_tree.query([x_guess, y_guess])
     return tuple(detected_stars[idx])
 
-def algol_position_tracking(input_dir, fits_files):
+def track_algol_position(input_dir, fits_files):
     algol_pos_list = []
     time_stamps = []
     
@@ -79,7 +79,7 @@ def algol_position_tracking(input_dir, fits_files):
     return algol_pos_list, time_stamps
 
 
-def reference_stars_tracking(input_dir, fits_files):
+def track_reference_stars(input_dir, fits_files):
     # showing first frame for star selection
     first_file = os.path.join(input_dir, fits_files[0])
     with fits.open(first_file) as hdul:
@@ -90,7 +90,7 @@ def reference_stars_tracking(input_dir, fits_files):
     
     
     plt.figure(figsize=(8, 6))
-    zscale_of_image(first_img, title="Click to select reference stars")
+    show_image_zscale(first_img, title="Click to select reference stars")
     ref_pos_initial = plt.ginput(num_ref_stars, timeout=0)
     plt.close()
     
@@ -138,7 +138,7 @@ def save_tracking_pdf(input_dir, fits_files, algol_pos, ref_pos, timestamps, out
             timestamp = timestamps[i]
             
             plt.figure(figsize=(8, 6))
-            zscale_of_image(img_data, title=f"Frame {i+1}: {timestamp}\nExposure: {exposure}s")
+            show_image_zscale(img_data, title=f"Frame {i+1}: {timestamp}\nExposure: {exposure}s")
             
             # plotting Algol position
             if algol_pos[i] is not None:
@@ -262,8 +262,8 @@ def save_lightcurve_pdf(rel_flux_data, timestamps, output_file="algol_lightcurve
             
             # plotting the light curve
             plt.figure(figsize=(8, 6))
-            plt.errorbar(time_labels, flux_values, yerr=flux_errors, color="k", 
-                         linestyle="-", ecolor="red", fmt='o', capsize=3)
+            plt.errorbar(time_labels, flux_values, yerr=flux_errors, 
+                         linestyle="-", ecolor="green", fmt='x', capsize=3)
             
             plt.xlabel("Time(UTC)")
             plt.ylabel(f"Relative Flux (Algol / {ref_name})")
@@ -283,16 +283,16 @@ def save_lightcurve_pdf(rel_flux_data, timestamps, output_file="algol_lightcurve
 # main function to run everything
 def process_algol_data():
     # folder with calibrated data files
-    data_folder = r"C:\algol_project\calibrated_frames_prashant_trial"
+    data_folder = r"C:\algol_project\calibrated_frames_prashant"
     
     print("Starting star tracking...")
     
     
-    fits_files = calibrated_fits(data_folder)
+    fits_files = get_sorted_fits_files(data_folder)
     
     # tracking Algol and ref stars
-    algol_positions, time_stamps = algol_position_tracking(data_folder, fits_files)
-    ref_positions = reference_stars_tracking(data_folder, fits_files)
+    algol_positions, time_stamps = track_algol_position(data_folder, fits_files)
+    ref_positions = track_reference_stars(data_folder, fits_files)
     
     # saving tracking results
     save_tracking_pdf(data_folder, fits_files, algol_positions, ref_positions, time_stamps)
